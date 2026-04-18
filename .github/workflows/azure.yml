@@ -10,12 +10,18 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  login:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Echo test
-        run: echo "GHA working"
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: 27696e7f-98ff-45d4-85f6-3e7706b45e8a
+          tenant-id: 3dd40eab-7747-46e7-9bae-600a1789287e
+          subscription-id: 976b414b-46a7-4cd1-b4cf-349193150110
+
+      - name: Test Azure Access
+        run: az group list
