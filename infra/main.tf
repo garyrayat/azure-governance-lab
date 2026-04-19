@@ -82,3 +82,11 @@ resource "azurerm_subscription_policy_assignment" "require_tags" {
   policy_definition_id = azurerm_policy_definition.require_tags.id
   subscription_id      = "/subscriptions/${var.subscription_id}"
 }
+
+resource "azurerm_public_ip" "bad_example" {
+  name                = "bad-public-ip"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.governance_lab.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
