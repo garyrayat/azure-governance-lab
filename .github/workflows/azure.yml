@@ -4,24 +4,67 @@ on:
   push:
     branches:
       - main
+      - azure-policy
+  pull_request:
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  login:
+  governance:
     runs-on: ubuntu-latest
 
+    env:
+      ARM_SUBSCRIPTION_ID: 976b414b-46a7-4cd1-b4cf-349193150110
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
       - name: Azure Login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           client-id: 27696e7f-98ff-45d4-85f6-3e7706b45e8a
           tenant-id: 3dd40eab-7747-46e7-9bae-600a1789287e
           subscription-id: 976b414b-46a7-4cd1-b4cf-349193150110
 
-      - name: Test Azure Access
-        run: az group list
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+
+      - name: Terraform Init
+        run: terraform -chdir=infra init
+
+      - name: Terraform Format Check
+        run: terraform -chdir=infra fmt -check
+
+      - name: Terraform Validate
+        run: terraform -chdir=infra validate
+
+      - name: Terraform Plan
+        run: |
+          terraform -chdir=infra plan \
+            -out=tfplan.binary \
+            -var="subscription_id=${ARM_SUBSCRIPTION_ID}"
+
+      - name: Convert Plan to JSON
+        run: terraform -chdir=infra show -json tfplan.binary > infra/tfplan.json
+
+      - name: OPA Enforcement
+        run: |
+          NET=$(opa eval --format raw --data policies --input infra/tfplan.json "count(data.terraform.azure.network.deny)")
+          TAG=$(opa eval --format raw --data policies --input infra/tfplan.json "count(data.terraform.azure.tags.deny)")
+
+          echo "Network violations: $NET"
+          echo "Tag violations: $TAG"
+
+          if [ "$NET" -gt 0 ] || [ "$TAG" -gt 0 ]; then
+            echo "Policy violation detected. Failing pipeline."
+            exit 1
+          fi
