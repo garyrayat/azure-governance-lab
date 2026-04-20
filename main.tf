@@ -50,6 +50,9 @@ resource "azurerm_policy_definition" "require_tags" {
   parameters = jsonencode({
     tagNames = {
       type = "Array"
+      metadata = {
+        displayName = "Required tags"
+      }
     }
   })
 
@@ -57,15 +60,15 @@ resource "azurerm_policy_definition" "require_tags" {
     if = {
       anyOf = [
         {
-          field  = "tags['environment']"
+          field  = "[concat('tags[', parameters('tagNames')[0], ']')]"
           exists = "false"
         },
         {
-          field  = "tags['owner']"
+          field  = "[concat('tags[', parameters('tagNames')[1], ']')]"
           exists = "false"
         },
         {
-          field  = "tags['cost_center']"
+          field  = "[concat('tags[', parameters('tagNames')[2], ']')]"
           exists = "false"
         }
       ]
@@ -81,12 +84,55 @@ resource "azurerm_subscription_policy_assignment" "require_tags" {
   display_name         = "Require Tags Assignment"
   policy_definition_id = azurerm_policy_definition.require_tags.id
   subscription_id      = "/subscriptions/${var.subscription_id}"
+
+  parameters = jsonencode({
+    tagNames = {
+      value = ["environment", "owner", "cost_center"]
+    }
+  })
 }
 
-resource "azurerm_public_ip" "bad_example" {
-  name                = "bad-public-ip"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.governance_lab.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
+resource "azurerm_policy_definition" "allowed_regions" {
+  name         = "allowed_regions_custom"
+  policy_type  = "Custom"
+  mode         = "All"
+  display_name = "Allowed regions only"
+
+  metadata = jsonencode({
+    category = "General"
+  })
+
+  parameters = jsonencode({
+    allowedLocations = {
+      type = "Array"
+      metadata = {
+        displayName = "Allowed locations"
+      }
+    }
+  })
+
+  policy_rule = jsonencode({
+    if = {
+      not = {
+        field = "location"
+        in    = "[parameters('allowedLocations')]"
+      }
+    }
+    then = {
+      effect = "deny"
+    }
+  })
+}
+
+resource "azurerm_subscription_policy_assignment" "allowed_regions" {
+  name                 = "allowed_regions_assignment"
+  display_name         = "Allowed Regions Assignment"
+  policy_definition_id = azurerm_policy_definition.allowed_regions.id
+  subscription_id      = "/subscriptions/${var.subscription_id}"
+
+  parameters = jsonencode({
+    allowedLocations = {
+      value = ["eastus", "centralus"]
+    }
+  })
 }
