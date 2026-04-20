@@ -1,3 +1,7 @@
+provider "azurerm" {
+  features {}
+}
+
 resource "azurerm_resource_group" "governance_lab" {
   name     = "rg_governance_lab"
   location = var.location
@@ -9,6 +13,9 @@ resource "azurerm_resource_group" "governance_lab" {
   }
 }
 
+# -------------------------------
+# DENY PUBLIC IP POLICY
+# -------------------------------
 resource "azurerm_policy_definition" "deny_public_ip" {
   name         = "deny_public_ip_custom"
   policy_type  = "Custom"
@@ -37,6 +44,9 @@ resource "azurerm_subscription_policy_assignment" "deny_public_ip" {
   subscription_id      = "/subscriptions/${var.subscription_id}"
 }
 
+# -------------------------------
+# REQUIRE TAGS POLICY
+# -------------------------------
 resource "azurerm_policy_definition" "require_tags" {
   name         = "require_tags_custom"
   policy_type  = "Custom"
@@ -50,9 +60,6 @@ resource "azurerm_policy_definition" "require_tags" {
   parameters = jsonencode({
     tagNames = {
       type = "Array"
-      metadata = {
-        displayName = "Required tags"
-      }
     }
   })
 
@@ -92,6 +99,9 @@ resource "azurerm_subscription_policy_assignment" "require_tags" {
   })
 }
 
+# -------------------------------
+# ALLOWED REGIONS POLICY
+# -------------------------------
 resource "azurerm_policy_definition" "allowed_regions" {
   name         = "allowed_regions_custom"
   policy_type  = "Custom"
@@ -105,9 +115,6 @@ resource "azurerm_policy_definition" "allowed_regions" {
   parameters = jsonencode({
     allowedLocations = {
       type = "Array"
-      metadata = {
-        displayName = "Allowed locations"
-      }
     }
   })
 
