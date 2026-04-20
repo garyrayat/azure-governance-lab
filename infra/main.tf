@@ -134,3 +134,47 @@ resource "azurerm_subscription_policy_assignment" "allowed_regions" {
     }
   })
 }
+
+# -------------------------------
+# PCI INITIATIVE (CORRECT)
+# -------------------------------
+resource "azurerm_policy_set_definition" "pci_baseline" {
+  name         = "pci_baseline"
+  policy_type  = "Custom"
+  display_name = "PCI Governance Baseline"
+
+  metadata = jsonencode({
+    category = "Compliance"
+  })
+
+  policy_definition_reference {
+    policy_definition_id = azurerm_policy_definition.deny_public_ip.id
+  }
+
+  policy_definition_reference {
+    policy_definition_id = azurerm_policy_definition.require_tags.id
+
+    parameter_values = jsonencode({
+      tagNames = {
+        value = ["environment", "owner", "cost_center"]
+      }
+    })
+  }
+
+  policy_definition_reference {
+    policy_definition_id = azurerm_policy_definition.allowed_regions.id
+
+    parameter_values = jsonencode({
+      allowedLocations = {
+        value = ["eastus"]
+      }
+    })
+  }
+}
+
+resource "azurerm_subscription_policy_assignment" "pci_assignment" {
+  name                 = "pci_assignment"
+  display_name         = "PCI Governance Assignment"
+  policy_definition_id = azurerm_policy_set_definition.pci_baseline.id
+  subscription_id      = "/subscriptions/${var.subscription_id}"
+}
