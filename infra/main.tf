@@ -168,9 +168,9 @@ resource "azurerm_policy_set_definition" "pci_baseline" {
   }
 }
 
-resource "azurerm_subscription_policy_assignment" "pci_assignment" {
+resource "azurerm_resource_group_policy_assignment" "pci_assignment" {
   name                 = "pci_assignment"
   display_name         = "PCI Governance Assignment"
   policy_definition_id = azurerm_policy_set_definition.pci_baseline.id
-  subscription_id      = "/subscriptions/${var.subscription_id}"
+  resource_group_id    = azurerm_resource_group.governance_lab.id
 }
