@@ -90,4 +90,4 @@ resource "azurerm_public_ip" "bad_example" {
   allocation_method   = "Static"
   sku                 = "Standard"
 }
-}
+
