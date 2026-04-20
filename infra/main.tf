@@ -91,3 +91,47 @@ resource "azurerm_public_ip" "bad_example" {
   sku                 = "Standard"
 }
 
+resource "azurerm_policy_definition" "allowed_regions" {
+  name         = "allowed_regions_custom"
+  policy_type  = "Custom"
+  mode         = "All"
+  display_name = "Allowed regions only"
+
+  metadata = jsonencode({
+    category = "General"
+  })
+
+  parameters = jsonencode({
+    allowedLocations = {
+      type = "Array"
+      metadata = {
+        displayName = "Allowed locations"
+      }
+    }
+  })
+
+  policy_rule = jsonencode({
+    if = {
+      not = {
+        field = "location"
+        in    = "[parameters('allowedLocations')]"
+      }
+    }
+    then = {
+      effect = "deny"
+    }
+  })
+}
+
+resource "azurerm_subscription_policy_assignment" "allowed_regions" {
+  name                 = "allowed_regions_assignment"
+  display_name         = "Allowed Regions Assignment"
+  policy_definition_id = azurerm_policy_definition.allowed_regions.id
+  subscription_id      = "/subscriptions/${var.subscription_id}"
+
+  parameters = jsonencode({
+    allowedLocations = {
+      value = ["eastus", "centralus"]
+    }
+  })
+}
