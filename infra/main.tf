@@ -90,11 +90,4 @@ resource "azurerm_public_ip" "bad_example" {
   allocation_method   = "Static"
   sku                 = "Standard"
 }
-
-resource "azurerm_public_ip" "bad_example" {
-  name                = "bad-public-ip"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.governance_lab.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
 }
