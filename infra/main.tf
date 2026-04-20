@@ -50,6 +50,9 @@ resource "azurerm_policy_definition" "require_tags" {
   parameters = jsonencode({
     tagNames = {
       type = "Array"
+      metadata = {
+        displayName = "Required tags"
+      }
     }
   })
 
@@ -57,15 +60,15 @@ resource "azurerm_policy_definition" "require_tags" {
     if = {
       anyOf = [
         {
-          field  = "tags['environment']"
+          field  = "[concat('tags[', parameters('tagNames')[0], ']')]"
           exists = "false"
         },
         {
-          field  = "tags['owner']"
+          field  = "[concat('tags[', parameters('tagNames')[1], ']')]"
           exists = "false"
         },
         {
-          field  = "tags['cost_center']"
+          field  = "[concat('tags[', parameters('tagNames')[2], ']')]"
           exists = "false"
         }
       ]
@@ -81,6 +84,12 @@ resource "azurerm_subscription_policy_assignment" "require_tags" {
   display_name         = "Require Tags Assignment"
   policy_definition_id = azurerm_policy_definition.require_tags.id
   subscription_id      = "/subscriptions/${var.subscription_id}"
+
+  parameters = jsonencode({
+    tagNames = {
+      value = ["environment", "owner", "cost_center"]
+    }
+  })
 }
 
 resource "azurerm_public_ip" "bad_example" {
@@ -130,6 +139,79 @@ resource "azurerm_subscription_policy_assignment" "allowed_regions" {
   subscription_id      = "/subscriptions/${var.subscription_id}"
 
   parameters = jsonencode({
+    allowedLocations = {
+      value = ["eastus", "centralus"]
+    }
+  })
+}
+
+resource "azurerm_policy_set_definition" "pci_baseline" {
+  name         = "pci_baseline"
+  policy_type  = "Custom"
+  display_name = "PCI Governance Baseline"
+
+  metadata = jsonencode({
+    category = "Compliance"
+  })
+
+  policy_definitions = jsonencode([
+    {
+      policyDefinitionId = azurerm_policy_definition.deny_public_ip.id
+    },
+    {
+      policyDefinitionId = azurerm_policy_definition.require_tags.id
+    },
+    {
+      policyDefinitionId = azurerm_policy_definition.allowed_regions.id
+    }
+  ])
+}
+
+resource "azurerm_subscription_policy_assignment" "pci_assignment" {
+  name                 = "pci_assignment"
+  display_name         = "PCI Governance Assignment"
+  policy_definition_id = azurerm_policy_set_definition.pci_baseline.id
+  subscription_id      = "/subscriptions/${var.subscription_id}"
+
+  parameters = jsonencode({
+    tagNames = {
+      value = ["environment", "owner", "cost_center"]
+    },
+    allowedLocations = {
+      value = ["eastus"]
+    }
+  })
+}
+
+resource "azurerm_policy_set_definition" "non_pci_baseline" {
+  name         = "non_pci_baseline"
+  policy_type  = "Custom"
+  display_name = "Non PCI Governance Baseline"
+
+  metadata = jsonencode({
+    category = "Compliance"
+  })
+
+  policy_definitions = jsonencode([
+    {
+      policyDefinitionId = azurerm_policy_definition.require_tags.id
+    },
+    {
+      policyDefinitionId = azurerm_policy_definition.allowed_regions.id
+    }
+  ])
+}
+
+resource "azurerm_subscription_policy_assignment" "non_pci_assignment" {
+  name                 = "non_pci_assignment"
+  display_name         = "Non PCI Governance Assignment"
+  policy_definition_id = azurerm_policy_set_definition.non_pci_baseline.id
+  subscription_id      = "/subscriptions/${var.subscription_id}"
+
+  parameters = jsonencode({
+    tagNames = {
+      value = ["environment", "owner"]
+    },
     allowedLocations = {
       value = ["eastus", "centralus"]
     }
